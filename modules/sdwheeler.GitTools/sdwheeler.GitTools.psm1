@@ -87,7 +87,7 @@ function Get-RepoData {
                 $apiurl = 'https://api.github.com/repos/' + $currentRepo.id
                 $hdr = @{
                     Accept        = 'application/vnd.github.json'
-                    Authorization = "token ${Env:\GITHUB_TOKEN}"
+                    Authorization = "token $(Get-Secret -Name GITHUB_TOKEN -AsPlainText)"
                 }
                 break
             }
@@ -491,7 +491,7 @@ function Get-RepoStatus {
     )
     $hdr = @{
         Accept        = 'application/vnd.github.VERSION.full+json'
-        Authorization = "token ${Env:\GITHUB_TOKEN}"
+        Authorization = "token $(Get-Secret -Name GITHUB_TOKEN -AsPlainText)"
     }
 
     $azlist = 'MicrosoftDocs/azure-docs-powershell', 'Azure/azure-docs-powershell-samples',
@@ -664,7 +664,7 @@ function Invoke-GitHubApi {
     }
     $hdr = @{
         Accept        = 'application/vnd.github.v3.raw+json'
-        Authorization = "token ${Env:\GITHUB_TOKEN}"
+        Authorization = "token $(Get-Secret -Name GITHUB_TOKEN -AsPlainText)"
     }
     $results = Invoke-RestMethod -Headers $hdr -Uri $uri -Method $method -FollowRelLink
     foreach ($page in $results) { $page }
@@ -712,7 +712,7 @@ function Import-GitHubLabels {
 
     $hdr = @{
         Accept        = 'application/vnd.github.v3+json'
-        Authorization = "token ${Env:\GITHUB_TOKEN}"
+        Authorization = "token $(Get-Secret -Name GITHUB_TOKEN -AsPlainText)"
     }
     $api = "https://api.github.com/repos/$RepoName/labels"
 
@@ -743,7 +743,7 @@ function Get-PrFiles {
     )
     $hdr = @{
         Accept        = 'application/vnd.github.VERSION.full+json'
-        Authorization = "token ${Env:\GITHUB_TOKEN}"
+        Authorization = "token $(Get-Secret -Name GITHUB_TOKEN -AsPlainText)"
     }
 
     $pr = Invoke-RestMethod "https://api.github.com/repos/$repo/pulls/$num" -Method GET -head $hdr -FollowRelLink
@@ -770,7 +770,7 @@ function Get-PrMerger {
 
     $hdr = @{
         Accept        = 'application/vnd.github.v3+json'
-        Authorization = "token ${Env:\GITHUB_TOKEN}"
+        Authorization = "token $(Get-Secret -Name GITHUB_TOKEN -AsPlainText)"
     }
     $query = "q=type:pr+is:merged+repo:$RepoName"
 
@@ -805,7 +805,7 @@ function Get-Issue {
 
     $hdr = @{
         Accept        = 'application/vnd.github.v3+json'
-        Authorization = "token ${Env:\GITHUB_TOKEN}"
+        Authorization = "token $(Get-Secret -Name GITHUB_TOKEN -AsPlainText)"
     }
     if ($null -ne $IssueUrl) {
         $RepoName = ($IssueUrl.Segments[1..2] -join '').trim('/')
@@ -839,7 +839,7 @@ function Get-IssueList {
     )
     $hdr = @{
         Accept        = 'application/vnd.github.v3.raw+json'
-        Authorization = "token ${Env:\GITHUB_TOKEN}"
+        Authorization = "token $(Get-Secret -Name GITHUB_TOKEN -AsPlainText)"
     }
     $apiurl = "https://api.github.com/repos/$RepoName/issues"
     $results = (Invoke-RestMethod $apiurl -Headers $hdr -FollowRelLink)
@@ -873,7 +873,7 @@ function New-PrFromBranch {
     $repo = (Show-RepoData)
     $hdr = @{
         Accept        = 'application/vnd.github.raw+json'
-        Authorization = "token ${Env:\GITHUB_TOKEN}"
+        Authorization = "token $(Get-Secret -Name GITHUB_TOKEN -AsPlainText)"
     }
     $apiurl = "https://api.github.com/repos/$($repo.id)/pulls"
 
@@ -936,7 +936,7 @@ function New-PrFromBranch {
 $global:DevOpsParentIds = @{
     NoParentId = 0
     ContentMaintenance = 4154
-    GitHubIssues = 4155
+    GitHubIssues = 250051
     SearchRescue = 4043
     Crescendo = 4151
     SecretManagement = 4084
@@ -959,7 +959,7 @@ function Get-DevOpsWorkItem {
     if (-not $Verbose) {$Verbose = $false}
 
     $username = ' '
-    $password = ConvertTo-SecureString $env:CLDEVOPS_TOKEN -AsPlainText -Force
+    $password = Get-Secret -Name CLDEVOPS_TOKEN
     $cred = [PSCredential]::new($username, $password)
 
     $vsuri = 'https://dev.azure.com'
@@ -1017,7 +1017,7 @@ function New-DevOpsWorkItem {
     if (-not $Verbose) {$Verbose = $false}
 
     $username = ' '
-    $password = ConvertTo-SecureString $env:CLDEVOPS_TOKEN -AsPlainText -Force
+    $password = Get-Secret -Name CLDEVOPS_TOKEN
     $cred = [PSCredential]::new($username, $password)
 
     $vsuri = 'https://dev.azure.com'
@@ -1160,7 +1160,7 @@ function Update-DevOpsWorkItem {
     if (-not $Verbose) {$Verbose = $false}
 
     $username = ' '
-    $password = ConvertTo-SecureString $env:CLDEVOPS_TOKEN -AsPlainText -Force
+    $password = Get-Secret -Name CLDEVOPS_TOKEN
     $cred = [PSCredential]::new($username, $password)
 
     $vsuri = 'https://dev.azure.com'
@@ -1461,7 +1461,7 @@ function New-MergeToLive {
     )
     $hdr = @{
         Accept        = 'application/vnd.github.v3+json'
-        Authorization = "token ${Env:\GITHUB_TOKEN}"
+        Authorization = "token $(Get-Secret -Name GITHUB_TOKEN -AsPlainText)"
     }
     $apiurl = "https://api.github.com/repos/$($repo.id)/pulls"
     $params = @{
