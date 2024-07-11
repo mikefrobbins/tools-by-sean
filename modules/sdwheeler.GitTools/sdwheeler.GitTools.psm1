@@ -936,7 +936,7 @@ function New-PrFromBranch {
 $global:DevOpsParentIds = @{
     NoParentId = 0
     ContentMaintenance = 4154
-    GitHubIssues = 250051
+    GitHubIssues = 260799
     SearchRescue = 4043
     Crescendo = 4151
     SecretManagement = 4084
