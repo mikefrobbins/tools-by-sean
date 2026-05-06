@@ -1,11 +1,11 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
-// Updated: 2026-02-26
+// Updated: 2026-05-06
 {
   "versions": {
-    "lts": ["7.4*", "7.6*"],
+    "lts": ["7.4*"],
     "preview": ["7.7.0-*"],
-    "stable": ["7.5*"]
+    "stable": ["7.5*", "7.6*"]
   },
   "rpmrepos": [
     {
@@ -109,6 +109,21 @@
       "distro": "ubuntu2404",
       "processor": "armhf",
       "packages": "https://packages.microsoft.com/ubuntu/24.04/prod/dists/noble/main/binary-armhf/Packages"
+    },
+    {
+      "distro": "ubuntu2604",
+      "processor": "x64",
+      "packages": "https://packages.microsoft.com/ubuntu/26.04/prod/dists/resolute/main/binary-amd64/Packages"
+    },
+    {
+      "distro": "ubuntu2604",
+      "processor": "arm64",
+      "packages": "https://packages.microsoft.com/ubuntu/26.04/prod/dists/resolute/main/binary-arm64/Packages"
+    },
+    {
+      "distro": "ubuntu2604",
+      "processor": "armhf",
+      "packages": "https://packages.microsoft.com/ubuntu/26.04/prod/dists/resolute/main/binary-armhf/Packages"
     }
   ]
 }
