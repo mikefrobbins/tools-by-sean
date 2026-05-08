@@ -4,7 +4,7 @@
     CompanyName        = 'SeanOnIT.org'
     Copyright          = '(c) sdwheeler. All rights reserved.'
     GUID               = 'fe67d104-c67f-4e14-aa84-0ab33ee85b03'
-    ModuleVersion      = '1.1.0'
+    ModuleVersion      = '1.2.0'
     RootModule         = 'PSMediaTools.psm1'
     NestedModules      = @()
     RequiredAssemblies = @()
@@ -32,7 +32,7 @@
         'Rename-RarFile'
         'Split-Chapters'
         'Split-MediaFileName'
-        'Update-Plex'
+        'Update-PlexLibraryPath'
     )
     AliasesToExport    = @()
     VariablesToExport  = @()

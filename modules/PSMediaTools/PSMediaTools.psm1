@@ -182,6 +182,45 @@ function Rename-RarFile {
     }
 }
 #---------------------------------------------------------------------
+function Split-MediaFileName {
+    <#
+    .SYNOPSIS
+        Splits media file names into components based on a predefined pattern.
+
+    .DESCRIPTION
+        This function takes a path to one or more media files and splits the file names into components
+        such as show, season, episode, and title based on a predefined pattern. The output is a custom
+        object with these properties.
+
+    .PARAMETER Path
+        The path to the media files to be processed. It accepts wildcards to specify multiple files.
+    #>
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)]
+        [SupportsWildcards()]
+        [string[]]$Path
+    )
+    $pattern = '(?<show>[\w\s\(\)]+)\.?S(?<season>\d+)E(?<episode>\d{2,4})\s?\.?(?<title>[\w\p{P}\s\(\)]+)?'
+    $files = Get-ChildItem -Path $Path -File
+    foreach ($f in $files) {
+        if ($f.BaseName -match $pattern) {
+            $item = [pscustomobject]@{
+                PSTypeName = 'MyPlexFileData'
+                show       = $matches['show'].Trim()
+                season     = $matches['season']
+                episode    = $matches['episode'].Trim()
+                title      = $matches['title']
+                file       = $f.FullName
+            }
+        } else {
+            Write-Verbose "Filename '$($f.BaseName)' does not match expected pattern. Skipping."
+            continue
+        }
+        $item
+    }
+}
+#---------------------------------------------------------------------
 #region FFMpeg Functions
 #---------------------------------------------------------------------
 function Convert-MediaFormat {
@@ -249,7 +288,9 @@ function Convert-MediaFormat {
 
     foreach ($p in $Path) {
         Get-ChildItem $p -file | ForEach-Object {
-            $streams = Get-FFMpegStreamData $_.FullName
+            $filename = $_.FullName -replace '\[','`[' -replace '\]','`]'
+            $streams = Get-FFMpegStreamData $filename # get english streams only
+            Write-Verbose "Streams: $($streams | Out-String)"
 
             $video = $streams | Where-Object type -EQ 'video' | Select-Object -First 1
             $audio = $streams | Where-Object type -EQ 'audio'
@@ -701,80 +742,12 @@ function Split-Chapters {
     }
 }
 #---------------------------------------------------------------------
-function Split-MediaFileName {
-    <#
-    .SYNOPSIS
-        Splits media file names into components based on a predefined pattern.
-
-    .DESCRIPTION
-        This function takes a path to one or more media files and splits the file names into components
-        such as show, season, episode, and title based on a predefined pattern. The output is a custom
-        object with these properties.
-
-    .PARAMETER Path
-        The path to the media files to be processed. It accepts wildcards to specify multiple files.
-    #>
-    [CmdletBinding()]
-    param(
-        [Parameter(Mandatory)]
-        [SupportsWildcards()]
-        [string[]]$Path
-    )
-    $pattern = '(?<show>[\w\s\(\)]+)\.?S(?<season>\d+)E(?<episode>\d{2,4})\s?\.?(?<title>[\w\p{P}\s\(\)]+)?'
-    $files = Get-ChildItem -Path $Path -File
-    foreach ($f in $files) {
-        if ($f.BaseName -match $pattern) {
-            $item = [pscustomobject]@{
-                PSTypeName = 'MyPlexFileData'
-                show       = $matches['show'].Trim()
-                season     = $matches['season']
-                episode    = $matches['episode'].Trim()
-                title      = $matches['title']
-                file       = $f.FullName
-            }
-        } else {
-            Write-Verbose "Filename '$($f.BaseName)' does not match expected pattern. Skipping."
-            continue
-        }
-        $item
-    }
-}
-#---------------------------------------------------------------------
 #endregion
 #---------------------------------------------------------------------
 #region PSPlex functions
 #---------------------------------------------------------------------
 # These functions depend on the PSPlex module, which provides cmdlets for interacting with a
 # Plex Media Server. See https://github.com/robinmalik/PSPlex.
-#---------------------------------------------------------------------
-# Get the library names and keys so we can use them for autocompletion in Update-Plex.
-$libraries = @{}
-Get-PlexLibrary | ForEach-Object { $libraries.Add($_.title, $_.key) }
-#---------------------------------------------------------------------
-function Update-Plex {
-    <#
-    .SYNOPSIS
-        Updates specified Plex libraries.
-
-    .DESCRIPTION
-        This function takes one or more Plex library names as input and updates those libraries on
-        the Plex Media Server.
-
-    .PARAMETER LibraryName
-        An array of Plex library names to be updated.
-    #>
-    [CmdletBinding()]
-    param(
-        [Parameter(Mandatory, Position=0, ValueFromPipeline)]
-        [string[]]$LibraryName
-    )
-    process {
-        foreach ($i in $LibraryName) {
-            $id = $libraries[$i]
-                $null = Update-PlexLibrary -Id $id
-        }
-    }
-}
 #---------------------------------------------------------------------
 function Get-PlexShowInfo {
     <#
@@ -907,6 +880,8 @@ function Publish-PlexItem {
         This function takes a path to one or more media files and a Plex library name as input.
         It moves the media files to the appropriate location in the Plex storage and updates the library.
 
+        The command parses the file name to get the show name, season number. It uses that information to find the corresponding show in the specified Plex library and moves the file to the correct season folder. Finally, it updates the Plex library to reflect the new media items.
+
     .PARAMETER Path
         The path to the media files to be published. It accepts wildcards to specify multiple files.
 
@@ -931,14 +906,60 @@ function Publish-PlexItem {
             Write-Verbose "Moving file to '$dest'"
             Move-Item -Path $item.file -Destination $dest -Force
         }
+        Update-PlexLibraryPath -LibraryName $LibraryName -Path $dest
     }
-    Update-Plex -LibraryName $LibraryName
 }
 #---------------------------------------------------------------------
+function Update-PlexLibraryPath {
+    <#
+    .SYNOPSIS
+        Updates the path of a specified Plex library.
+
+    .DESCRIPTION
+        This function takes a Plex library name and an optional path as input.
+        It updates the Plex library for the specified path.
+
+    .PARAMETER LibraryName
+        The name of the Plex library to update.
+
+    .PARAMETER Path
+        The path containing new media items to be added to the Plex library. If not specified, the function updates the entire library.
+    #>
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $true, Position = 0)]
+        [String]$LibraryName,
+
+        [Parameter(Position = 1)]
+        [String]$Path
+    )
+
+    $ConfigFile = "$env:APPDATA\PSPlex\PSPlexConfig.json"
+    $script:PlexConfigData = Get-Content -Path $ConfigFile | ConvertFrom-Json
+
+    $id = $libraries[$LibraryName]
+    $parts = @(
+        { $PlexConfigData.Uri }
+        { '/library/sections/{0}/refresh?' -f $id }
+        {
+            if ($Path) {
+                ('path={0}&' -f [Uri]::EscapeDataString($Path))
+            }
+        }
+        { ('X-Plex-Token={0}' -f $PlexConfigData.Token) }
+    )
+    $endptUri = -join $parts.Invoke()
+    Write-Verbose $endptUri
+    $null = Invoke-RestMethod -Uri $endptUri -Method GET
+}
+#---------------------------------------------------------------------
+# Get the library names and keys so we can use them for autocompletion.
+$libraries = @{}
+Get-PlexLibrary | ForEach-Object { $libraries.Add($_.title, $_.key) }
 # Register an argument completer for the LibraryName parameter provide autocompletion of library
 # names.
 $cmds = 'Get-PlexShowInfo', 'Get-PlexSeasonInfo', 'Get-PlexEpisodeInfo', 'Publish-PlexItem',
-    'Update-Plex'
+    'Update-PlexLibraryPath'
 $sbLibraries = {
     param($commandName, $parameterName, $wordToComplete, $commandAst, $fakeBoundParameters)
     $libraries.Keys |
