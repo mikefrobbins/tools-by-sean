@@ -403,7 +403,8 @@ function Copy-MediaStreams {
 
     foreach ($p in $Path) {
         Get-ChildItem $p -file | ForEach-Object {
-            $streams = Get-FFMpegStreamData $_.FullName
+            $filename = $_.FullName -replace '\[','`[' -replace '\]','`]'
+            $streams = Get-FFMpegStreamData $filename
             $video = $streams | Where-Object type -EQ 'video' | Select-Object -First 1
             $audio = $streams | Where-Object type -EQ 'audio'
             $subtitle = $streams |
