@@ -899,15 +899,22 @@ function Publish-PlexItem {
         [string]$LibraryName
     )
     $items = Split-MediaFileName -Path $Path
+    $lbPaths = @()
     foreach ($item in $items) {
         Write-Verbose "Processing file: $($item.file)"
         $show = Get-PlexShowInfo -LibraryName $LibraryName -ShowName $item.show
         if ($show) {
             $dest = Join-Path -Path $show.location "Season $($item.season)"
+            if ($dest -notin $lbPaths) {
+                $lbPaths += $dest
+            }
             Write-Verbose "Moving file to '$dest'"
             Move-Item -Path $item.file -Destination $dest -Force
         }
-        Update-PlexLibraryPath -LibraryName $LibraryName -Path $dest
+    }
+    foreach ($path in $lbPaths) {
+        Write-Verbose "Updating library '$LibraryName' for path '$path'"
+        Update-PlexLibraryPath -LibraryName $LibraryName -Path $path
     }
 }
 #---------------------------------------------------------------------
