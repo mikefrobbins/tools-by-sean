@@ -284,7 +284,7 @@ function Invoke-GitHubApi {
     $hdr = @{
         Accept                 = 'application/vnd.github.raw+json'
         Authorization          = "token ${Env:\GITHUB_TOKEN}"
-        'X-GitHub-Api-Version' = '2022-11-28'
+        'X-GitHub-Api-Version' = '2026-03-10'
     }
     $invokeRestMethodSplat = @{
         Headers       = $hdr
@@ -301,6 +301,44 @@ function Invoke-GitHubApi {
     } catch {
         Write-Error (($_.Exception.Message, $_.ErrorDetails.Message) -join "`n")
     }
+}
+#-------------------------------------------------------
+function Get-GHRepoLatestTag {
+    param(
+        [Parameter(Mandatory)]
+        [string]$Org,
+        [Parameter(Mandatory)]
+        [string]$Repo
+    )
+    $Query = @"
+query {
+  repository(owner: "$Org", name: "$Repo") {
+    refs(refPrefix: "refs/tags/", first: 1, orderBy: {field: TAG_COMMIT_DATE, direction: DESC}) {
+      nodes {
+        name
+        target {
+          ... on Commit {
+            committedDate
+            message
+          }
+        }
+      }
+    }
+  }
+}
+"@
+
+    $irmSplat = @{
+        Headers = @{
+            Authorization = "bearer $env:GITHUB_TOKEN"
+            Accept        = 'application/vnd.github.v4.json'
+        }
+        Uri     = 'https://api.github.com/graphql'
+        Body    = @{ query = $query } | ConvertTo-Json -Compress
+        Method  = 'POST'
+    }
+    $result = Invoke-RestMethod @irmSplat
+    $result.data.repository.refs.nodes
 }
 #-------------------------------------------------------
 function Get-RepoCacheAge {

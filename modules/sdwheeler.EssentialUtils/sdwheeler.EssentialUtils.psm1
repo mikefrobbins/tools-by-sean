@@ -576,9 +576,6 @@ function Show-Redirects {
 function GetTools {
     $items = Get-Content -Path $PSScriptRoot\tools.jsonc |
         ConvertFrom-Json
-    foreach ($item in $items) {
-        $item.ExePath = Invoke-Expression ('"{0}"' -f $item.ExePath)
-    }
     $items
 }
 $ToolList = GetTools
@@ -586,34 +583,35 @@ $ToolList = GetTools
 function GetInstalledVersion {
     param($tool)
 
-    $InstalledVersion = ''
-    if (Test-Path $tool.ExePath) {
-        switch ($tool.VersionCmd) {
-            'gcm'   {
-                $cmd = Get-Command $tool.ExePath
-                if ($cmd.Version -ne $null) {
-                    $InstalledVersion = $cmd.Version.ToString()
-                } else {
-                    $InstalledVersion = $cmd.FileVersionInfo.FileVersion
-                }
-            }
-            'sls'   {
-                $result = Select-String -Path $tool.ExePath -Pattern $tool.VersionPattern
-                if ($result -match $tool.VersionPattern) { $InstalledVersion = $matches[1] }
-            }
-            default {
-                if ($tool.VersionPattern -ne '') {
-                    $result = Invoke-Expression $tool.VersionCmd |
-                        Select-String -Pattern $tool.VersionPattern
-                    $InstalledVersion = $result.Matches.Groups.Where({$_.Name -eq 'ver'}).value
-                } else {
-                    $InstalledVersion = Invoke-Expression $tool.VersionCmd
-                }
+    $InstalledVersion = 'n/a'
+    switch ($tool.VersionCmd) {
+        'gcm'   {
+            $cmd = Get-Command $tool.ExePath -ErrorAction SilentlyContinue
+            if ($null -ne $cmd.Version) {
+                $InstalledVersion = $cmd.Version.ToString()
+            } else {
+                $InstalledVersion = $cmd.FileVersionInfo.FileVersion
             }
         }
-    } else {
-        $InstalledVersion = 'n/a'
+        'sls'   {
+            $result = Select-String -Path $tool.ExePath -Pattern $tool.VersionPattern -ErrorAction SilentlyContinue
+            if ($result -match $tool.VersionPattern) { $InstalledVersion = $matches[1] }
+        }
+        default {
+            if ($tool.VersionPattern -ne '') {
+                $result = Invoke-Expression $tool.VersionCmd
+                if ($result -is [array]) {
+                    $result = $result -join "`n"
+                }
+                if ($result -match $tool.VersionPattern) {
+                    $InstalledVersion = $Matches.ver
+                }
+            } else {
+                $InstalledVersion = Invoke-Expression $tool.VersionCmd
+            }
+        }
     }
+    $InstalledVersion = $InstalledVersion.Substring(0, [Math]::Min($InstalledVersion.Length, 15))
     $tool | Add-Member -MemberType NoteProperty -Name InstalledVersion -Value $InstalledVersion -Force
 }
 function GetWingetVersion {
@@ -628,12 +626,25 @@ function GetWingetVersion {
 function GetGitHubVersion {
     param($tool)
 
-    if ($tool.GitRepo -ne '' -and $tool.HasRelease ) {
-        $release = gh release view -R $($tool.GitRepo) --json name,tagName,publishedAt,body |
-            ConvertFrom-Json
-        $tool | Add-Member -MemberType NoteProperty -Name GitHubTag -Value $release.tagName -Force
-        $tool | Add-Member -MemberType NoteProperty -Name GHReleaseDate -Value "$('{0:yyyy-MM-dd}' -f $release.publishedAt)" -Force
-        $tool | Add-Member -MemberType NoteProperty -Name ReleaseNotes -Value $release.body -Force
+    if ($tool.GitRepo -ne '') {
+        if ($tool.HasRelease ) {
+            $release = Invoke-GitHubApi -Api "repos/$($tool.GitRepo)/releases/latest" |
+                Select-Object name,tag_name,published_at,body
+            $tool | Add-Member -MemberType NoteProperty -Name GitHubTag -Value $release.tag_name -Force
+            $date = '{0:yyyy-MM-dd}' -f $release.published_at
+            $tool | Add-Member -MemberType NoteProperty -Name GHReleaseDate -Value $date -Force
+            $tool | Add-Member -MemberType NoteProperty -Name GHReleaseNotes -Value $release.body -Force
+        } else {
+            $org = $tool.GitRepo.Split('/')[0]
+            $repo = $tool.GitRepo.Split('/')[1]
+            $tag = Get-GHRepoLatestTag -Org $org -Repo $repo | Select-Object -First 1
+            if ($tag) {
+                $tool | Add-Member -MemberType NoteProperty -Name GitHubTag -Value $tag.name -Force
+                $date = '{0:yyyy-MM-dd}' -f $tag.target.committedDate
+                $tool | Add-Member -MemberType NoteProperty -Name GHReleaseDate -Value $date -Force
+                $tool | Add-Member -MemberType NoteProperty -Name GHReleaseNotes -Value $tag.target.message -Force
+            }
+        }
     }
 }
 #-------------------------------------------------------
