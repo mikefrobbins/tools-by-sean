@@ -64,7 +64,7 @@
                      <TableColumnItem>
                         <ScriptBlock>
                            if ($_.GitRepo -ne '') {
-                             if ($_.HasReleases) {
+                             if ($_.HasRelease) {
                                $PSStyle.FormatHyperlink($_.GitRepo, "https://github.com/$($_.GitRepo)/releases/latest")
                              } else {
                                $PSStyle.FormatHyperlink($_.GitRepo, "https://github.com/$($_.GitRepo)")
@@ -130,7 +130,7 @@
                      <TableColumnItem>
                         <ScriptBlock>
                            if ($_.GitRepo -ne '') {
-                             if ($_.HasReleases) {
+                             if ($_.HasRelease) {
                                $PSStyle.FormatHyperlink($_.GitRepo, "https://github.com/$($_.GitRepo)/releases/latest")
                              } else {
                                $PSStyle.FormatHyperlink($_.GitRepo, "https://github.com/$($_.GitRepo)")
